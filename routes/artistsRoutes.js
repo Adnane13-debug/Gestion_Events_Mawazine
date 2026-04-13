@@ -1,26 +1,11 @@
-const express = require('express')
-const router = express.Router()
+const express = require("express");
+const router = express.Router();
+const artistController = require("../controllers/artistsController");
 
-const {
-  getAllArtists,
-  searchArtists,
-  getArtist,
-  createArtist,
-  updateArtist,
-  deleteArtist,
-  getConcertsByArtist
-} = require('../controllers/artistsController')
+router.get("/", artistController.getAllArtists);
+router.get("/:id", artistController.getArtistById);
+router.post("/", artistController.createArtist);
+router.put("/:id", artistController.updateArtist);
+router.delete("/:id", artistController.deleteArtist);
 
-// Search must come BEFORE /:id to avoid conflict
-router.get('/artists/search', searchArtists)
-
-router.get('/artists', getAllArtists)
-router.get('/artists/:id', getArtist)
-router.post('/artists', createArtist)
-router.put('/artists/:id', updateArtist)
-router.delete('/artists/:id', deleteArtist)
-
-// Relational route
-router.get('/artists/:id/concerts', getConcertsByArtist)
-
-module.exports = router
+module.exports = router;

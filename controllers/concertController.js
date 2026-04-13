@@ -1,96 +1,75 @@
-const { readDB, writeDB } = require('../utils/db')
+const Concert = require("../models/Concert");
+const Artist = require("../models/Artist");
 
-function getAllConcerts(req, res) {
-  const data = readDB()
-  res.status(200).json(data.concerts)
-}
-
-function getConcert(req, res) {
-  const data = readDB()
-  const id = parseInt(req.params.id)
-  const concert = data.concerts.find(c => c.id === id)
-  if (!concert) {
-    return res.status(404).json({ message: 'Concert not found' })
+// GET all concerts (filter by date)
+exports.getAllConcerts = async (req, res) => {
+  try {
+    const filter = {};
+    if (req.query.date) filter.date = req.query.date;
+    const concerts = await Concert.find(filter).populate({
+      path: "artist",
+      populate: { path: "stage" }
+    }).sort({ date: 1 });
+    res.json(concerts);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-  res.status(200).json(concert)
-}
+};
 
-function createConcert(req, res) {
-  const { title, date, time, duration, artistId } = req.body
-
-  if (!title || !date || !time || duration === undefined || artistId === undefined) {
-    return res.status(400).json({ message: 'Fields title, date, time, duration and artistId are required' })
+// GET one concert by ID
+exports.getConcertById = async (req, res) => {
+  try {
+    const concert = await Concert.findById(req.params.id).populate({
+      path: "artist",
+      populate: { path: "stage" }
+    });
+    if (!concert) return res.status(404).json({ error: "Concert not found" });
+    res.json(concert);
+  } catch (err) {
+    res.status(400).json({ error: "Invalid ID" });
   }
-  if (typeof duration !== 'number' || isNaN(duration) || duration <= 0) {
-    return res.status(400).json({ message: 'duration must be a valid positive number' })
-  }
+};
 
-  const data = readDB()
-  const artistExists = data.artists.find(a => a.id === artistId)
-  if (!artistExists) {
-    return res.status(400).json({ message: `Artist with id ${artistId} does not exist` })
-  }
-
-  const newConcert = {
-    id: data.concerts.length > 0 ? Math.max(...data.concerts.map(c => c.id)) + 1 : 1,
-    title,
-    date,
-    time,
-    duration,
-    artistId
-  }
-  data.concerts.push(newConcert)
-  writeDB(data)
-  res.status(201).json(newConcert)
-}
-
-function updateConcert(req, res) {
-  const data = readDB()
-  const id = parseInt(req.params.id)
-  const index = data.concerts.findIndex(c => c.id === id)
-
-  if (index === -1) {
-    return res.status(404).json({ message: 'Concert not found' })
-  }
-
-  const { title, date, time, duration, artistId } = req.body
-
-  if (duration !== undefined && (typeof duration !== 'number' || isNaN(duration) || duration <= 0)) {
-    return res.status(400).json({ message: 'duration must be a valid positive number' })
-  }
-
-  if (artistId !== undefined) {
-    const artistExists = data.artists.find(a => a.id === artistId)
-    if (!artistExists) {
-      return res.status(400).json({ message: `Artist with id ${artistId} does not exist` })
+// POST create a concert
+exports.createConcert = async (req, res) => {
+  try {
+    const { date, time, artist } = req.body;
+    if (!date || !time || !artist) {
+      return res.status(400).json({ error: "Missing required fields" });
     }
+    // Check that the artist exists
+    const artistExists = await Artist.findById(artist);
+    if (!artistExists) return res.status(404).json({ error: "Artist not found" });
+
+    const concert = await Concert.create({ date, time, artist });
+    res.status(201).json(concert);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
+};
 
-  data.concerts[index] = {
-    ...data.concerts[index],
-    ...(title !== undefined && { title }),
-    ...(date !== undefined && { date }),
-    ...(time !== undefined && { time }),
-    ...(duration !== undefined && { duration }),
-    ...(artistId !== undefined && { artistId })
+// PUT update a concert
+exports.updateConcert = async (req, res) => {
+  try {
+    const concert = await Concert.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true, runValidators: true }
+    );
+    if (!concert) return res.status(404).json({ error: "Concert not found" });
+    res.json(concert);
+  } catch (err) {
+    res.status(400).json({ error: "Invalid ID or data" });
   }
+};
 
-  writeDB(data)
-  res.status(200).json(data.concerts[index])
-}
-
-function deleteConcert(req, res) {
-  const data = readDB()
-  const id = parseInt(req.params.id)
-  const index = data.concerts.findIndex(c => c.id === id)
-
-  if (index === -1) {
-    return res.status(404).json({ message: 'Concert not found' })
+// DELETE a concert
+exports.deleteConcert = async (req, res) => {
+  try {
+    const concert = await Concert.findByIdAndDelete(req.params.id);
+    if (!concert) return res.status(404).json({ error: "Concert not found" });
+    res.json({ message: "Concert deleted successfully" });
+  } catch (err) {
+    res.status(400).json({ error: "Invalid ID" });
   }
-
-  const deleted = data.concerts.splice(index, 1)[0]
-  writeDB(data)
-  res.status(200).json({ message: 'Concert deleted successfully', concert: deleted })
-}
-
-module.exports = { getAllConcerts, getConcert, createConcert, updateConcert, deleteConcert }
+};

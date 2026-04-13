@@ -1,19 +1,26 @@
-const express = require("express")
-const app = express()
-const stageRoutes = require('./routes/stageRoutes')
-const artistsRoutes = require('./routes/artistsRoutes')
-const concertRoutes = require('./routes/concertRoutes')
+require("dotenv").config();
+const express = require("express");
+const connectDB = require("./config/db");
 
-app.use(express.json())
+const stageRoutes = require("./routes/stageRoutes");
+const artistRoutes = require("./routes/artistsRoutes");
+const concertRoutes = require("./routes/concertRoutes");
 
-app.use("/api", stageRoutes)
-app.use("/api", artistsRoutes)
-app.use("/api", concertRoutes)
+const app = express();
 
-app.use((req, res) => {
-    res.status(404).json({ message: "Endpoint not found. Please check the API documentation." })
-})
+app.use(express.json());
 
-app.listen(3000,()=>{
-    console.log(`Server running at http://localhost:3000`)
-})
+app.use("/api/stages", stageRoutes);
+app.use("/api/artists", artistRoutes);
+app.use("/api/concerts", concertRoutes);
+
+connectDB()
+  .then(() => {
+    console.log("MongoDB connected");
+    app.listen(process.env.PORT, () => {
+      console.log(`Server running on port ${process.env.PORT}`);
+    });
+  })
+  .catch((error) => {
+    console.error("Error connecting to database:", error.message);
+  });

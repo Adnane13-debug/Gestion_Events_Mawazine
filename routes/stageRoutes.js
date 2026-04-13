@@ -1,22 +1,11 @@
-const express = require('express')
-const router = express.Router()
+const express = require("express");
+const router = express.Router();
+const stageController = require("../controllers/stageController");
 
-const {
-  getAllStages,
-  getStage,
-  createStage,
-  updateStage,
-  deleteStage,
-  getArtistsByStage
-} = require('../controllers/stageController')
+router.get("/", stageController.getAllStages);
+router.get("/:id", stageController.getStageById);
+router.post("/", stageController.createStage);
+router.put("/:id", stageController.updateStage);
+router.delete("/:id", stageController.deleteStage);
 
-router.get('/stages', getAllStages)
-router.get('/stages/:id', getStage)
-router.post('/stages', createStage)
-router.put('/stages/:id', updateStage)
-router.delete('/stages/:id', deleteStage)
-
-// Relational route
-router.get('/stages/:id/artists', getArtistsByStage)
-
-module.exports = router
+module.exports = router;

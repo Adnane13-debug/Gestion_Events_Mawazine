@@ -1,123 +1,72 @@
-const { readDB, writeDB } = require('../utils/db')
+const Artist = require("../models/Artist");
+const Stage = require("../models/Stage");
 
-// GET /artists  (supports ?genre=Pop and ?stageId=2)
-function getAllArtists(req, res) {
-  const data = readDB()
-  let artists = data.artists
-
-  if (req.query.genre) {
-    artists = artists.filter(a => a.genre.toLowerCase() === req.query.genre.toLowerCase())
-  }
-  if (req.query.stageId) {
-    const stageId = parseInt(req.query.stageId)
-    artists = artists.filter(a => a.stageId === stageId)
-  }
-
-  res.status(200).json(artists)
-}
-
-// GET /artists/search?name=ma
-function searchArtists(req, res) {
-  const { name } = req.query
-  if (!name) {
-    return res.status(400).json({ message: 'Query param "name" is required' })
-  }
-  const data = readDB()
-  const results = data.artists.filter(a => a.name.toLowerCase().includes(name.toLowerCase()))
-  res.status(200).json(results)
-}
-
-function getArtist(req, res) {
-  const data = readDB()
-  const id = parseInt(req.params.id)
-  const artist = data.artists.find(a => a.id === id)
-  if (!artist) {
-    return res.status(404).json({ message: 'Artist not found' })
-  }
-  res.status(200).json(artist)
-}
-
-function createArtist(req, res) {
-  const { name, genre, country, stageId } = req.body
-
-  if (!name || !genre || !country || stageId === undefined) {
-    return res.status(400).json({ message: 'Fields name, genre, country and stageId are required' })
-  }
-
-  const data = readDB()
-  const stageExists = data.stages.find(s => s.id === stageId)
-  if (!stageExists) {
-    return res.status(400).json({ message: `Stage with id ${stageId} does not exist` })
-  }
-
-  const newArtist = {
-    id: data.artists.length > 0 ? Math.max(...data.artists.map(a => a.id)) + 1 : 1,
-    name,
-    genre,
-    country,
-    stageId
-  }
-  data.artists.push(newArtist)
-  writeDB(data)
-  res.status(201).json(newArtist)
-}
-
-function updateArtist(req, res) {
-  const data = readDB()
-  const id = parseInt(req.params.id)
-  const index = data.artists.findIndex(a => a.id === id)
-
-  if (index === -1) {
-    return res.status(404).json({ message: 'Artist not found' })
-  }
-
-  const { name, genre, country, stageId } = req.body
-
-  if (stageId !== undefined) {
-    const stageExists = data.stages.find(s => s.id === stageId)
-    if (!stageExists) {
-      return res.status(400).json({ message: `Stage with id ${stageId} does not exist` })
+// GET all artists (filter by genre, search by name)
+exports.getAllArtists = async (req, res) => {
+  try {
+    const filter = {};
+    if (req.query.genre) filter.genre = req.query.genre;
+    if (req.query.name) {
+      filter.name = { $regex: req.query.name, $options: "i" };
     }
+    const artists = await Artist.find(filter).populate("stage").sort({ name: 1 });
+    res.json(artists);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
+};
 
-  data.artists[index] = {
-    ...data.artists[index],
-    ...(name !== undefined && { name }),
-    ...(genre !== undefined && { genre }),
-    ...(country !== undefined && { country }),
-    ...(stageId !== undefined && { stageId })
+// GET one artist by ID
+exports.getArtistById = async (req, res) => {
+  try {
+    const artist = await Artist.findById(req.params.id).populate("stage");
+    if (!artist) return res.status(404).json({ error: "Artist not found" });
+    res.json(artist);
+  } catch (err) {
+    res.status(400).json({ error: "Invalid ID" });
   }
+};
 
-  writeDB(data)
-  res.status(200).json(data.artists[index])
-}
+// POST create an artist
+exports.createArtist = async (req, res) => {
+  try {
+    const { name, genre, country, stage } = req.body;
+    if (!name || !genre || !country || !stage) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+    // Check that the stage exists
+    const stageExists = await Stage.findById(stage);
+    if (!stageExists) return res.status(404).json({ error: "Stage not found" });
 
-function deleteArtist(req, res) {
-  const data = readDB()
-  const id = parseInt(req.params.id)
-  const index = data.artists.findIndex(a => a.id === id)
-
-  if (index === -1) {
-    return res.status(404).json({ message: 'Artist not found' })
+    const artist = await Artist.create({ name, genre, country, stage });
+    res.status(201).json(artist);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
+};
 
-  const deleted = data.artists.splice(index, 1)[0]
-  writeDB(data)
-  res.status(200).json({ message: 'Artist deleted successfully', artist: deleted })
-}
-
-// GET /artists/:id/concerts
-function getConcertsByArtist(req, res) {
-  const data = readDB()
-  const id = parseInt(req.params.id)
-  const artist = data.artists.find(a => a.id === id)
-
-  if (!artist) {
-    return res.status(404).json({ message: 'Artist not found' })
+// PUT update an artist
+exports.updateArtist = async (req, res) => {
+  try {
+    const artist = await Artist.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true, runValidators: true }
+    );
+    if (!artist) return res.status(404).json({ error: "Artist not found" });
+    res.json(artist);
+  } catch (err) {
+    res.status(400).json({ error: "Invalid ID or data" });
   }
+};
 
-  const concerts = data.concerts.filter(c => c.artistId === id)
-  res.status(200).json(concerts)
-}
-
-module.exports = { getAllArtists, searchArtists, getArtist, createArtist, updateArtist, deleteArtist, getConcertsByArtist }
+// DELETE an artist
+exports.deleteArtist = async (req, res) => {
+  try {
+    const artist = await Artist.findByIdAndDelete(req.params.id);
+    if (!artist) return res.status(404).json({ error: "Artist not found" });
+    res.json({ message: "Artist deleted successfully" });
+  } catch (err) {
+    res.status(400).json({ error: "Invalid ID" });
+  }
+};

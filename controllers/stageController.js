@@ -1,94 +1,66 @@
-const { readDB, writeDB } = require('../utils/db')
+const Stage = require("../models/Stage");
 
-function getAllStages(req, res) {
-  const data = readDB()
-  res.status(200).json(data.stages)
-}
-
-function getStage(req, res) {
-  const data = readDB()
-  const id = parseInt(req.params.id)
-  const stage = data.stages.find(s => s.id === id)
-  if (!stage) {
-    return res.status(404).json({ message: 'Stage not found' })
+// GET all stages (with optional search by name)
+exports.getAllStages = async (req, res) => {
+  try {
+    const filter = {};
+    if (req.query.name) {
+      filter.name = { $regex: req.query.name, $options: "i" };
+    }
+    const stages = await Stage.find(filter).sort({ name: 1 });
+    res.json(stages);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-  res.status(200).json(stage)
-}
+};
 
-function createStage(req, res) {
-  const { name, city, capacity } = req.body
-
-  if (!name || !city || capacity === undefined) {
-    return res.status(400).json({ message: 'Fields name, city and capacity are required' })
+// GET one stage by ID
+exports.getStageById = async (req, res) => {
+  try {
+    const stage = await Stage.findById(req.params.id);
+    if (!stage) return res.status(404).json({ error: "Stage not found" });
+    res.json(stage);
+  } catch (err) {
+    res.status(400).json({ error: "Invalid ID" });
   }
-  if (typeof capacity !== 'number' || isNaN(capacity) || capacity <= 0) {
-    return res.status(400).json({ message: 'capacity must be a valid positive number' })
+};
+
+// POST create a stage
+exports.createStage = async (req, res) => {
+  try {
+    const { name, location, capacity } = req.body;
+    if (!name || !location || !capacity) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+    const stage = await Stage.create({ name, location, capacity });
+    res.status(201).json(stage);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
+};
 
-  const data = readDB()
-  const newStage = {
-    id: data.stages.length > 0 ? Math.max(...data.stages.map(s => s.id)) + 1 : 1,
-    name,
-    city,
-    capacity
+// PUT update a stage
+exports.updateStage = async (req, res) => {
+  try {
+    const stage = await Stage.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true, runValidators: true }
+    );
+    if (!stage) return res.status(404).json({ error: "Stage not found" });
+    res.json(stage);
+  } catch (err) {
+    res.status(400).json({ error: "Invalid ID or data" });
   }
-  data.stages.push(newStage)
-  writeDB(data)
-  res.status(201).json(newStage)
-}
+};
 
-function updateStage(req, res) {
-  const data = readDB()
-  const id = parseInt(req.params.id)
-  const index = data.stages.findIndex(s => s.id === id)
-
-  if (index === -1) {
-    return res.status(404).json({ message: 'Stage not found' })
+// DELETE a stage
+exports.deleteStage = async (req, res) => {
+  try {
+    const stage = await Stage.findByIdAndDelete(req.params.id);
+    if (!stage) return res.status(404).json({ error: "Stage not found" });
+    res.json({ message: "Stage deleted successfully" });
+  } catch (err) {
+    res.status(400).json({ error: "Invalid ID" });
   }
-
-  const { name, city, capacity } = req.body
-
-  if (capacity !== undefined && (typeof capacity !== 'number' || isNaN(capacity) || capacity <= 0)) {
-    return res.status(400).json({ message: 'capacity must be a valid positive number' })
-  }
-
-  data.stages[index] = {
-    ...data.stages[index],
-    ...(name !== undefined && { name }),
-    ...(city !== undefined && { city }),
-    ...(capacity !== undefined && { capacity })
-  }
-
-  writeDB(data)
-  res.status(200).json(data.stages[index])
-}
-
-function deleteStage(req, res) {
-  const data = readDB()
-  const id = parseInt(req.params.id)
-  const index = data.stages.findIndex(s => s.id === id)
-
-  if (index === -1) {
-    return res.status(404).json({ message: 'Stage not found' })
-  }
-
-  const deleted = data.stages.splice(index, 1)[0]
-  writeDB(data)
-  res.status(200).json({ message: 'Stage deleted successfully', stage: deleted })
-}
-
-// GET /stages/:id/artists
-function getArtistsByStage(req, res) {
-  const data = readDB()
-  const id = parseInt(req.params.id)
-  const stage = data.stages.find(s => s.id === id)
-
-  if (!stage) {
-    return res.status(404).json({ message: 'Stage not found' })
-  }
-
-  const artists = data.artists.filter(a => a.stageId === id)
-  res.status(200).json(artists)
-}
-
-module.exports = { getAllStages, getStage, createStage, updateStage, deleteStage, getArtistsByStage }
+};
