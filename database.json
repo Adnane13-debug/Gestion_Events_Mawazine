@@ -1,0 +1,20 @@
+{
+  "stages": [
+    { "id": 1, "name": "OLM Souissi", "city": "Rabat", "capacity": 8000 },
+    { "id": 2, "name": "Scène Nahda", "city": "Rabat", "capacity": 5000 },
+    { "id": 3, "name": "Scène Bouregreg", "city": "Salé", "capacity": 3000 }
+  ],
+  "artists": [
+    { "id": 1, "name": "Maâlem Mahmoud Guinia", "genre": "Gnawa", "country": "Morocco", "stageId": 1 },
+    { "id": 2, "name": "Stromae", "genre": "Pop", "country": "Belgium", "stageId": 1 },
+    { "id": 3, "name": "Oum", "genre": "Soul", "country": "Morocco", "stageId": 2 },
+    { "id": 4, "name": "Nass El Ghiwane", "genre": "Folk", "country": "Morocco", "stageId": 3 }
+  ],
+  "concerts": [
+    { "id": 1, "title": "Opening Night", "date": "2026-06-21", "time": "20:30", "duration": 90, "artistId": 1 },
+    { "id": 2, "title": "Stromae Live", "date": "2026-06-22", "time": "21:00", "duration": 120, "artistId": 2 },
+    { "id": 3, "title": "Oum Acoustic", "date": "2026-06-23", "time": "19:00", "duration": 75, "artistId": 3 },
+    { "id": 4, "title": "Nass El Ghiwane Classics", "date": "2026-06-24", "time": "20:00", "duration": 100, "artistId": 4 },
+    { "id": 5, "title": "Stromae Encore", "date": "2026-06-25", "time": "22:00", "duration": 60, "artistId": 2 }
+  ]
+}
